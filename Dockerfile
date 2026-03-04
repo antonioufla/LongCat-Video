@@ -30,6 +30,7 @@ WORKDIR /workspace/LongCat-Video
 COPY . /workspace/LongCat-Video
 
 RUN python3 -m pip install --upgrade pip setuptools wheel && \
+    python3 -m pip install --dry-run --no-deps -r requirements.runpod.txt && \
     python3 -m pip install --index-url https://download.pytorch.org/whl/cu124 \
     torch==2.6.0+cu124 torchvision==0.21.0+cu124 torchaudio==2.6.0 && \
     python3 -m pip install ninja packaging psutil==6.0.0 && \
