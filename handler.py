@@ -18,6 +18,36 @@ LONGCAT_VIDEO_REPO = "meituan-longcat/LongCat-Video"
 LONGCAT_AVATAR_REPO = "meituan-longcat/LongCat-Video-Avatar"
 MAX_LOG_LINES = 200
 MODELS_READY = False
+REPO_DOWNLOAD_CONFIG = {
+    LONGCAT_VIDEO_REPO: {
+        "local_dir": WEIGHTS_DIR / "LongCat-Video",
+        "allow_patterns": [
+            "tokenizer/**",
+            "text_encoder/**",
+            "vae/**",
+            "scheduler/**",
+        ],
+        "required_paths": [
+            "tokenizer",
+            "text_encoder",
+            "vae",
+            "scheduler",
+        ],
+    },
+    LONGCAT_AVATAR_REPO: {
+        "local_dir": WEIGHTS_DIR / "LongCat-Video-Avatar",
+        "allow_patterns": [
+            "avatar_single/**",
+            "chinese-wav2vec2-base/**",
+            "vocal_separator/**",
+        ],
+        "required_paths": [
+            "avatar_single",
+            "chinese-wav2vec2-base",
+            "vocal_separator/Kim_Vocal_2.onnx",
+        ],
+    },
+}
 
 
 def _tail_log(text: str, max_lines: int = MAX_LOG_LINES) -> str:
@@ -71,14 +101,30 @@ def _pick(input_data: dict, *keys):
     return None
 
 
-def _ensure_repo(repo_id: str, local_dir: Path) -> None:
+def _repo_is_ready(local_dir: Path, required_paths) -> bool:
+    return all((local_dir / rel_path).exists() for rel_path in required_paths)
+
+
+def _ensure_repo(repo_id: str) -> None:
+    config = REPO_DOWNLOAD_CONFIG[repo_id]
+    local_dir = config["local_dir"]
+    allow_patterns = config["allow_patterns"]
+    required_paths = config["required_paths"]
+
     local_dir.mkdir(parents=True, exist_ok=True)
+    if _repo_is_ready(local_dir, required_paths):
+        return
+
     token = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_HUB_TOKEN")
     snapshot_download(
         repo_id=repo_id,
         local_dir=str(local_dir),
+        allow_patterns=allow_patterns,
         token=token,
     )
+
+    if not _repo_is_ready(local_dir, required_paths):
+        raise RuntimeError(f"Download incompleto para {repo_id}.")
 
 
 def ensure_models() -> None:
@@ -86,8 +132,8 @@ def ensure_models() -> None:
     if MODELS_READY:
         return
 
-    _ensure_repo(LONGCAT_VIDEO_REPO, WEIGHTS_DIR / "LongCat-Video")
-    _ensure_repo(LONGCAT_AVATAR_REPO, WEIGHTS_DIR / "LongCat-Video-Avatar")
+    _ensure_repo(LONGCAT_VIDEO_REPO)
+    _ensure_repo(LONGCAT_AVATAR_REPO)
     MODELS_READY = True
 
 
